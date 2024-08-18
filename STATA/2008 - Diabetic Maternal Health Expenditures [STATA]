@@ -1,0 +1,231 @@
+*/
+Name: Kayla Lam
+Email: kaylarlam@gmail.com
+Purpose: Analyzing Different Healthcare Expenditure Costs for Pregnant Women in the United States Using the Medical Expenditure Panel Survey (MEPS) Data - 2008 
+Software: Stata/SE 18.0
+Date Started: 11/19/2023
+Date Edited: 8/17/2024
+*/
+
+/* About
+In 2021, the maternal mortality rate for Black women was 69.9 deaths per 100,000 live births, which is 2.6 times more than White women.
+This highlights a significant disparity in adverse pregnancy outcomes that has been proven to be due to a difference in quality of healthcare, structural racism, bias, and underlying chronic conditions (Hoyert, 2021).
+Diabetes is an important disease to diagnose and treat to reduce adverse health outcomes (Valent et al., 2023).
+A common form of diabetes in pregnant women is gestational diabetes mellitus (GDM).
+When left untreated, GDM can cause long-term complications like obesity, cardiovascular diseases, and impaired glucose metabolism in mothers and infants (McIntyre et al., 2019). 
+There is no standard on the optimal screening and diagnostic procedure for GDM or other forms of diabetes.
+When patients are diagnosed with GDM, patients should be educated on the disease and its effects. The most important care management that should occur are lifestyle changes (such as exercise) and self-monitoring. 
+If those are ineffective, then medicinal approaches (such as insulin and oral medication) are implemented (Bagias et al., 2021).
+
+Previous literature has highlighted trends in the health care of women in the United States stratified by race/ethnicity.
+A population-based cross-sectional study of people who had just given birth aged 15 to 44 showed that Asian Indian women had the highest gestational diabetes rate at 129.1 cases per 1000 live births (Shah et al., 2021). 
+A previous analysis of MEPS data revealed that there were disparities in the prescription of medication among Hispanic and White patients, specifically for asthma (Fabiyi et al., 2019).
+None of these studies have examined the patterns in the prescription of medicines for diabetes by race/ethnicity in pregnant mothers, which this project aims to do.
+The goal is to determine if there is a difference in the diagnosis, treatment, and medications prescribed by race or ethnicity for pregnant mothers,
+By identifying potential variations in care, we can focus on eliminating inequities by targeting maternal health disparities.
+*/
+
+clear
+cd "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Do Files/Exploratory Analysis/Diabetes/"
+log using "MEPS 2008 - Expenditures Model - do file log", replace
+
+/* Longitudinal file */
+use "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Data/h130.dta"
+rename *, lower
+
+//format dupersid
+gen dupersid_2 = dupersid
+format dupersid_2 %-20s
+describe dupersid
+rename dupersid dupersid_orig // keep copy just in case
+rename dupersid_2 dupersid
+
+/*Identify pregnancy via self-answered questions
+PREGNT31 - PREGNANT DURING REF PERIOD - RD 3/1 	
+PREGNT42 - PREGNANT DURING REF PERIOD - RD 4/2
+PREGNT53 - PREGNANT DURING REF PERIOD - RD 5/3 
+	-9 NOT ASCERTAINED	
+	-8 DK	
+	-7 REFUSED	
+	-1 INAPPLICABLE	
+	1 YES	
+	2 NO		
+	
+pregnt31 pregnt42 pregnt53
+*/
+tab pregnt31 if pregnt31 == 1
+tab pregnt42 if pregnt42 == 1
+tab pregnt53 if pregnt53 == 1
+
+gen pregnant = .
+replace pregnant = 1 if (pregnt31 == 1) | (pregnt42 == 1) | (pregnt53 == 1)
+label variable pregnant "Pregnancy Status"
+recode pregnant . = 2
+label define PREG_LABEL 1 "Pregnant" 2 "Not Pregnant"
+label values pregnant PREG_LABEL
+
+//generate pregnancy round information PREGNT1 PREGNT2 PREGNT3 PREGNT4 PREGNT5
+generate round_pregnant_2008 = .
+gen round1_pregnant_2008=1 if pregnt1==1
+gen round2_pregnant_2008=1 if pregnt2==1
+gen round3_pregnant_2008=1 if pregnt3==1
+gen round4_pregnant_2008=1 if pregnt4==1
+gen round5_pregnant_2008=1 if pregnt5==1
+
+replace pregnt1 = . if (pregnt1 == -9 | pregnt1 == -8 | pregnt1 == -1)
+replace pregnt2 = . if (pregnt2 == -9 | pregnt2 == -8 | pregnt2 == -1)
+replace pregnt3 = . if (pregnt3 == -9 | pregnt3 == -8 | pregnt3 == -1)
+replace pregnt4 = . if (pregnt4 == -9 | pregnt4 == -8 | pregnt4 == -1)
+replace pregnt5 = . if (pregnt5 == -9 | pregnt5 == -8 | pregnt5 == -1)
+replace pregnt1 = 0 if (pregnt1 == 2)
+replace pregnt2 = 0 if (pregnt2 == 2)
+replace pregnt3 = 0 if (pregnt3 == 2)
+replace pregnt4 = 0 if (pregnt4 == 2)
+replace pregnt5 = 0 if (pregnt5 == 2)
+
+//generate pregnancy variable that counts total rounds of pregnancy
+egen total_pregnant_rounds = rowtotal(pregnt1 pregnt2 pregnt3 pregnt4 pregnt5)
+//browse total_pregnant_rounds pregnt1 pregnt2 pregnt3 pregnt4 pregnt5
+
+gen preg_period = .
+//replace preg_period = 1 if (pregnt1==1 & pregnt2==1) * interested in rounds 2-5!
+replace preg_period = 1 if (pregnt2==1 & pregnt3==1)
+replace preg_period = 1 if (pregnt3==1 & pregnt4==1)
+//Remediation - heteroskedasticity
+//addressing heteroskedasticity -- transform Y
+//with expenditure models, the dataset is usually right skewed because of a lack of 0 or non-zero values
+//we do not want to categorize the expenditures variables, so we will add 1 and log, square, and cube transform the variable (even if interpretation is more tricky)
+
+gen totalexp_log=log(1+totalexp)
+gen totalexp_sq=(1+totalexp)^2
+gen totalexp_cu=(1+totalexp)^3
+
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+//r-squared: 0.0943, p<0.001
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+//r-squared: 0.1012, p<0.001 -- BEST!
+svy, subpop (if pregnant==1): regress totalexp_sq i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+//r-squared: 0.0645, p=0.0003
+svy, subpop (if pregnant==1): regress totalexp_cu i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+//r-squared: 0.0437, p=0.0194
+
+//assumption checking, fit unweighted model
+regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+//r-squared: 0.0627, p<0.001
+regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+//r-squared: 0.1183, p<0.001 -- BEST!
+regress totalexp_sq i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+//r-squared: 0.0583, p<0.001
+regress totalexp_cu i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+//r-squared: 0.0478, p=0.0002
+
+//Testing remediation
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+//r-squared: 0.1012, p<0.001
+regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+//r-squared: 0.1183, p<0.001
+
+rvfplot, yline(-15 0 15)
+//We can see that the points that fall outside the lines are still not randomly distributed.
+
+estat imtest
+//p<0.001
+estat hettest
+//p<0.001
+/*We can see that for our model, the White (p<0.005) and Breusch-Pagan (p<0.005) tests are both are statistically significant. 
+The model is still heteroskedastic (not-normal), though better fitting after the transformation.
+*/
+
+/* Model Building Process and Remediation Interpretation
+We utilized multiple linear regression to build our model on the relationship between total health care expenditures and race/ethnicity for pregnant diabetic and non-diabetic women in the United States for the year of 2008. 
+We used svy to incorporate survey weightage after setting the survey weight.
+
+To assess linearity, we utilized VIF to identify any covariates with a VIF value higher than 10, which would denote an issue with linearity within the model.
+While we did not identify any, we also ran rvfplot which revealed that there was a clear curvilinear trend, AKA an issue with linearity within the model.
+
+To assess normality, we used three different tests.
+The Shapiro-Wilks test was the initial test we utilized.
+	A statistically significant result would mean that there are issues with normality within the model, which we did identify.
+We used White’s test after to confirm this, which resulted in a statistically significant result.
+	This meant that there were issues with normality within the model.
+	However, White’s test is not always accurate.
+Finally, we used the Breusch-Pagan test, which resulted in a statistically significant result.
+	This meant that there were issues with normality within the model.
+	It was finally accepted by our standards as heteroskedastic. 
+
+We know that our base model has issues with linearity and heteroskedasticity.
+	One way to address this would be to drop influential outliers in the models.
+	However in expenditure models, this is not the right move! 
+	Dropping influential cases would drop the sickest people in the dataset with higher expenditure costs.
+To remediate our model we attempted to transform Y, which was total health care expenditures.
+	We could have categorized this, but since we were interested in total health care expenditures as a continuous measure, we did not want to.
+	Instead, we added 1 and took the log, square, and cubic transformation of total health care expenditures.
+	We added 1 because with expenditure models, the dataset is usually right skewed because of a lack of 0 or non-zero values.
+Of the three transformations, log transformation was the best fit with a r-squared value of 0.1012 or 10.12% model fitness.
+*/
+
+//FINAL MODEL
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+//r-squared: 0.1012, p<0.001; b/c model covariates are all categorical!
+//acceptable values for r-squared = 0.3-0.6; p-value = 0.2
+
+/* Model Interpretation
+In 2008, after adjusting for the highest education degree, insurance coverage, poverty level, region, and marital status…
+	Black pregnant women had a 37.37% lower total health care expenditures cost compared to White pregnant women.
+		Only this association is statistically significant with a p-value of 0.021 (barely).
+	We did not observe a significant difference in cost among Asian, Hispanic, and other pregnant women compared to White women.
+Diabetic pregnant women of all races had a 123.87% higher total health care expenditures cost compared to non-diabetic pregnant women.
+	This association was statistically significant with a p-value of 0.017.
+We can see that the r-squared value is 0.1012 and the p-value is less than 0.001, meaning that the model fitness is 10.12% and is statistically significant.
+	The lower percentage of model fitness is to be expected due to the covariates in the model being all categorical.
+*/
+
+//Table 1
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+dtable i.hispanx i.pregnant i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x,by(racex) svy subpop(if pregnant==1) nformat(%7.2f mean sd) sformat ("%s" sd) export(table1_ale.docx, replace)
+
+tab racex hispanx, chi2
+tab racex pregnant, chi2
+tab racex diabetes, chi2
+tab racex hideg, chi2
+tab racex inscov08, chi2
+tab racex povcat08, chi2
+tab racex region08, chi2
+tab racex marry08x, chi2
+
+/*Table 1 Interpretation
+We can see that all of our covariates have a statistically significant relationship with the predictor in the model, race
+We can also see that there is a smaller number of observations for diabetic pregnant women (and some other covariates) when stratified by race
+*/
+
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+svy, subpop (if pregnant==1 & diabetes==1): regress totalexp_log i.racex i.hispanx i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+svy, subpop (if pregnant==1 & diabetes==0): regress totalexp_log i.racex i.hispanx i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+
+/*Interpretation of interactions
+We can see that none of the associations are statistically significant.
+	Despite this, we see some interaction effects when looking at the coefficients for Black and Asian pregnant women.
+While the coefficients have the same direction, their coefficients are different. 
+	So it looks like the difference in cost when compared to the reference group stems from whether they have diabetes or not.
+After stratification by diabetic and non-diabetic pregnant women we can see that…
+	Among people with diabetes, the cost of care during the evaluation period was 54.24% lower for Black pregnant women compared to White pregnant women.
+	Among people with diabetes, the cost of care during the evaluation period was 26.6% lower for Asian pregnant women compared to White pregnant women.
+	Among those without diabetes, the cost of care during the evaluation period was 34.86% lower for Black pregnant women compared to White pregnant women.
+	Among those without diabetes, the cost of care during the evaluation period was 25.51% lower for Asian pregnant women compared to White pregnant women.
+*/
+
+/* Recommendations
+Some strengths of this analysis is that it pulls from a nationally representative sample and that the observations with incomplete data are very limited.
+In addition to this, the MEPS dataset offers a large variety of variables to choose from.
+	A limitation of this analysis is the small sample size, especially when stratifying by race/ethnicity and diabetic/non-diabetic.
+In addition to this, there could be possible self-reporting bias as pregnancy and disease indicators were informed with self-answered questions by participants. 
+	lassifications of race and disease are not exact either, ICD9 codes are non-specific.
+In my opinion, the current analysis is not robust enough to form a final conclusion about the associations within the model
+	Moving forward, we will be increasing the observations of diabetic pregnant women included in analysis by pooling together more years of data.
+	We can also look into adding more covariates related to access to care and how that impacts expenditures.
+*/
+log close

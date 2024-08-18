@@ -1,0 +1,447 @@
+/*
+Name: Kayla Lam
+Email: kaylarlam@gmail.com
+Purpose: Analyzing Different Healthcare Expenditure Costs for Pregnant Women in the United States Using the Medical Expenditure Panel Survey (MEPS) Data - 2008 
+Software: Stata/SE 18.0
+Date Started: 11/19/2023
+Date Edited: 8/17/2024
+*/
+
+clear
+cd "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Do Files/Exploratory Analysis/Diabetes/"
+log using "Baseline File: Full Year Consolidated, Longitudinal - do file log", replace
+/* 2008 */
+
+/* Longitudinal file */
+use "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Data/h130.dta"
+rename *, lower
+
+// format dupersid
+gen dupersid_2 = dupersid
+format dupersid_2 %-20s
+describe dupersid
+rename dupersid dupersid_orig // keep copy just in case
+rename dupersid_2 dupersid
+
+/*Identify pregnancy via self-answered questions
+PREGNT31 - PREGNANT DURING REF PERIOD - RD 3/1 	
+PREGNT42 - PREGNANT DURING REF PERIOD - RD 4/2
+PREGNT53 - PREGNANT DURING REF PERIOD - RD 5/3 
+	-9 NOT ASCERTAINED	
+	-8 DK	
+	-7 REFUSED	
+	-1 INAPPLICABLE	
+	1 YES	
+	2 NO		
+	
+pregnt31 pregnt42 pregnt53
+*/
+tab pregnt31 if pregnt31 == 1
+tab pregnt42 if pregnt42 == 1
+tab pregnt53 if pregnt53 == 1
+
+gen pregnant = .
+replace pregnant = 1 if (pregnt31 == 1) | (pregnt42 == 1) | (pregnt53 == 1)
+label variable pregnant "Pregnancy Status"
+recode pregnant . = 2
+label define PREG_LABEL 1 "Pregnant" 2 "Not Pregnant"
+label values pregnant PREG_LABEL
+
+//generate pregnancy round information PREGNT1 PREGNT2 PREGNT3 PREGNT4 PREGNT5
+generate round_pregnant_2008 = .
+gen round1_pregnant_2008=1 if pregnt1==1
+gen round2_pregnant_2008=1 if pregnt2==1
+gen round3_pregnant_2008=1 if pregnt3==1
+gen round4_pregnant_2008=1 if pregnt4==1
+gen round5_pregnant_2008=1 if pregnt5==1
+
+replace pregnt1 = . if (pregnt1 == -9 | pregnt1 == -8 | pregnt1 == -1)
+replace pregnt2 = . if (pregnt2 == -9 | pregnt2 == -8 | pregnt2 == -1)
+replace pregnt3 = . if (pregnt3 == -9 | pregnt3 == -8 | pregnt3 == -1)
+replace pregnt4 = . if (pregnt4 == -9 | pregnt4 == -8 | pregnt4 == -1)
+replace pregnt5 = . if (pregnt5 == -9 | pregnt5 == -8 | pregnt5 == -1)
+replace pregnt1 = 0 if (pregnt1 == 2)
+replace pregnt2 = 0 if (pregnt2 == 2)
+replace pregnt3 = 0 if (pregnt3 == 2)
+replace pregnt4 = 0 if (pregnt4 == 2)
+replace pregnt5 = 0 if (pregnt5 == 2)
+
+//generate pregnancy variable that counts total rounds of pregnancy
+egen total_pregnant_rounds = rowtotal(pregnt1 pregnt2 pregnt3 pregnt4 pregnt5)
+//browse total_pregnant_rounds pregnt1 pregnt2 pregnt3 pregnt4 pregnt5
+
+gen preg_period = .
+//replace preg_period = 1 if (pregnt1==1 & pregnt2==1) * interested in rounds 2-5!
+replace preg_period = 1 if (pregnt2==1 & pregnt3==1)
+replace preg_period = 1 if (pregnt3==1 & pregnt4==1)
+replace preg_period = 1 if (pregnt4==1 & pregnt5==1)
+replace preg_period = 1 if (pregnt1==1 & pregnt2==1 & pregnt3==1)
+replace preg_period = 1 if (pregnt1==1 & pregnt2==1 & pregnt3==1 & pregnt4==1)
+replace preg_period = 1 if (pregnt2==1 & pregnt3==1 & pregnt4==1)
+replace preg_period = 1 if (pregnt2==1 & pregnt3==1 & pregnt4==1 & pregnt5==1)
+replace preg_period = 1 if (pregnt3==1 & pregnt4==1 & pregnt5==1)
+tab preg_period
+//summarize pregnancy_visit if (pregnant==1 & preg_period==1), detail
+
+keep panel dupersid dupersid_orig pid pregnt1 pregnt2 pregnt3 pregnt4 pregnt5 total_pregnant_rounds preg_period longwt
+save LONG_2008, replace
+
+/* Full Year consolidated file */
+clear
+use "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Data/h121.dta"
+rename *, lower
+
+/*Identify diabetes via self-answered questions
+DIABDX - DIABETES DIAGNOSIS (>17)
+	-9 NOT ASCERTAINED	
+	-8 DK	
+	-7 REFUSED	
+	-1 INAPPLICABLE	
+	1 YES	
+	2 NO		
+	
+DIABDX diabdx
+*/
+tab diabdx if diabdx == 1
+
+gen diabetes = .
+replace diabetes = 0 if (diabdx == -1 | diabdx == 2)
+replace diabetes = 1 if (diabdx == 1)
+
+label variable diabetes "Diabetes Status"
+label define DIAB_LABEL 0 "Not Diabetic" 1 "Diabetic"
+label values diabetes DIAB_LABEL
+tab diabdx
+tab diabetes
+
+/*Diabetes education indicator
+dscnpc53 - Other Provider
+dscpcp53 - Primary Care Provider
+dscphn53 - Provider Over the Phone
+dscint53 - Internet
+dscgrp53 - Group Class
+*/
+gen diabetes_education = . 
+replace diabetes_education = 1 if dscpcp53 == 1
+replace diabetes_education = 2 if dscphn53 == 1
+replace diabetes_education = 3 if dscnpc53 == 1
+replace diabetes_education = 4 if (dscint53 == 1 | dscgrp53 == 1)
+label variable diabetes_education "Type of Diabetes Education Source"
+label define dia_edu_label 1 "Primary Care Provider" 2 "Provider Over the Phone"  3 "Other Provider" 4 "Group Class or Internet"
+*grouped together group class/internet due to small observation size
+label values diabetes_education dia_edu_label
+
+/*Diabetes management indicator
+dsdiet53 - Diabetes Management via Diet Modification
+dsmed53 - Diabetes Management via Oral Medication
+dsinsu53 - Diabetes Management via Insulin Injection
+*/
+gen diabetes_management = . 
+replace diabetes_management = 1 if dsdiet53 == 1
+replace diabetes_management = 2 if dsmed53 == 2
+replace diabetes_management = 3 if dsinsu53 == 3
+label variable diabetes_management "Type of Diabetes Management"
+label define dia_man_label 1 "Diet Modification" 2 "Oral Medication" 3 "Insulin Injection"
+label values diabetes_management dia_man_label
+
+*Define expenditure variables by type of service
+gen totalexp = totexp08
+label variable totalexp "Total Health Care Expenditures"
+gen hospital_inpatient = ipdexp08 + ipfexp08
+label variable hospital_inpatient "Hosiptal Inpatient Expenditures"
+gen ambulatory_emergency = obvexp08 + opdexp08 + opfexp08 + erdexp08 + erfexp08
+label variable ambulatory_emergency "Total Ambulatory and Emergency Services: Office-Based & Hospital Outpatient Visits Expenditures"
+gen prescribed_medicines = rxexp08
+label variable prescribed_medicines "Prescribed Medicines Expenditures"
+gen dental = dvtexp08
+label variable dental "Total Dental Care Expenditures"
+gen home_health_other = hhaexp08 + hhnexp08 + othexp08 + visexp08
+label variable home_health_other "Home Health Care (Agency & Non-Agency) and Other Expenditures"
+
+*create race/ethnicity indicators
+*collapse race variable
+label variable racex "Race"
+tab racex
+recode racex "3" = "6"
+recode racex "5" = "6"
+recode racex "6" = "6"
+recode racex "4" = "5"
+label define racex_LABEL 1 "White" 2 "Black" 5 "Asian" 6 "Other"
+label values racex racethnx_LABEL
+tab racex
+
+label variable hispanx "Hispanic Ethnicity"
+tab hispanx
+recode hispanx "2" = "0"
+label define hispanx_LABEL 0 "No" 1 "Yes" 
+label values hispanx hispanx_LABEL
+label values hispanx hispanx_LABEL
+tab hispanx
+
+label variable hideg "Highest Education Level"
+tab hideg
+replace hideg = . if (hideg == -9 | hideg == -8 | hideg == -7 | hideg == 8)
+recode hideg "1" = "1"
+recode hideg "2" "3" = "2"
+recode hideg "4" "5" "6" "7" = "3"
+label define hideg_LABEL 1 "No Degree" 2 "High School Diploma/GED" 3 "Other/Bachelors/Masters/Doctoral Degree"
+*collapse categories with little obs
+label values hideg hideg_LABEL
+tab hideg
+
+label variable inscov08 "Insurance Coverage Type"
+tab inscov08
+label define inscov_LABEL 1 "Any Private" 2 "Public Only" 3 "Uninsured"
+label values inscov08 inscov_LABEL
+tab inscov08
+
+label variable marry08x "Marital Status"
+tab marry08x
+recode marry08x "-9" "-7" "6" = .
+recode marry08x "2" "3" "4" = "2"
+recode marry08x "5" = "3"
+label define marry_LABEL 1 "Married" 2 "Widowed/Divorced/Separated" 3 "Never Married"
+*collapse categories with little obs
+label values marry08x marry_LABEL
+tab marry08x
+
+label variable povcat08 "Poverty Level"
+tab povcat08
+recode povcat08 "1" "2" = "1"
+recode povcat08 "3" = "2" 
+recode povcat08 "4" = "3"
+recode povcat08 "5" = "4" 
+label define povcat_LABEL 1 "Near Poor/Poor/Negative" 2 "Low Income" 3 "Middle Income" 4 "High Income"
+*collapse categories with little obs
+label values povcat08 povcat_LABEL
+tab povcat08
+
+label variable region08 "Region"
+tab region08
+recode region08 "-1" = .
+label define region_LABEL 1 "Northeast" 2 "Midwest" 3 "South" 4 "West"
+label values region08 region_LABEL
+tab region08
+
+//create date from adcmpd42 adcmpm42 adcmpy42
+egen saq_date = concat(adcmpm42 adcmpd42 adcmpy42), punct(-)
+
+// format dupersid
+gen dupersid_2 = dupersid
+format dupersid_2 %-20s
+describe dupersid
+rename dupersid dupersid_orig // keep copy just in case
+rename dupersid_2 dupersid
+
+keep panel pid dupersid dupersid_orig adcmpd42 adcmpm42 adcmpy42 saq_date diabetes diabdx racex hispanx hideg inscov08 povcat08 region08 marry08x diabetes_education dscpcp53 dscphn53 dscnpc53 dscint53 dscgrp53 diabetes_management dsdiet53 dsmed53 dsinsu53 totalexp hospital_inpatient ambulatory_emergency prescribed_medicines dental home_health_other perwt08f famwt08f saqwt08f diabw08f varpsu varstr
+save FYC_2008, replace
+
+merge m:m dupersid using LONG_2008, generate(LONG) 
+drop if LONG==2
+drop LONG
+*15,067 not matched from master
+*288 not matched from using
+*17,999 matched
+
+save BASELINE_2008, replace
+describe
+*33,066 obs total  
+log close
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+/* MODEL BUILDING */
+
+clear
+cd "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Do Files/Exploratory Analysis/Diabetes"
+log using "Model Building - Total Expenditures do file log", replace
+use BASELINE_2008
+rename *, lower
+
+/*testing for bivariate relationships
+predictor:
+racex - categorical
+hispanx - categorical
+diabetes - categorical
+
+outcome:
+totalexp - continuous
+
+covariates:
+hideg - categorical
+inscov08 - categorical
+povcat08 - categorical
+region08 - categorical
+marry08x - categorical
+
+anova: categorical and continuous
+chi2: categorical and categorical
+*/
+
+*outcome + covariates:
+anova totalexp racex 
+*p<0.001, r=-0.0202
+anova totalexp hispanx
+*p<0.001, r=-0.0781
+anova totalexp diabetes 
+*p<0.001, r=0.1898
+anova totalexp hideg
+*p<0.001, r=0.0307
+anova totalexp inscov08
+*p<0.001, r=-0.0696
+anova totalexp povcat08 
+*p<0.001, r=0.0255
+anova totalexp region08
+*p<0.001, r=-0.0369
+anova totalexp marry08x
+*p<0.001, r=-0.0728
+pwcorr totalexp racex hispanx diabetes hideg inscov08 povcat08 region08 marry08x
+
+*checking for relationships with other predictors
+tab hideg inscov08, chi2
+*p<0.001, r=-0.3335
+tab hideg povcat08, chi2
+*p<0.001, r=0.3925
+tab hideg marry08x, chi2
+*p<0.001, r=-0.1924
+tab hideg region08, chi2
+*p<0.001, -0.0575
+tab inscov08 povcat08, chi2
+*p<0.001, r=-0.4389
+tab inscov08 region08, chi2
+*p<0.001, r=0.0568
+tab inscov08 marry08x, chi2
+*p<0.001, r=0.1761
+tab povcat08 region08, chi2
+*p<0.001, r=-0.0183
+tab povcat08 marry08x, chi2
+*p<0.001, r=-0.2154
+tab region08 marry08x, chi2
+*p<0.001, r=-0.0269
+
+pwcorr hideg inscov08 povcat08 region08 marry08x
+
+// Evaluate missing
+egen miss = rowmiss (racex hispanx diabetes hideg inscov08 povcat08 region08 marry08x) 
+tab miss if pregnant == 1
+count if (miss==0 & pregnant == 1)
+tab pregnant
+//browse racex hispanx diabetes hideg inscov08 povcat08 region08 marry08x if (miss==1 & pregnant == 1)
+*968 total, 945 non-missing, 23 missing, all due to missing hideg
+
+// Determine number of covariates in model
+dis 945/20
+dis 945/10
+*47.25 conservative, 94.5 liberal
+
+// model building - total expenditures
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.0943, p<0.001
+
+//assumption checking, fit unweighted model
+regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+*r-squared: 0.0627, p<0.001
+
+//diagnostics
+*some collinearity between covariates, but to be expected!
+
+//assessing linearity - NO COLINEARITY ISSUES
+predict yhat
+vif
+*highest vif was 2.59, which is not of concern for colinearity
+rvfplot
+*we do not have a clear curvilinear trend, reason for line = non-zero expenditures do not exist, gap in middle = normal
+
+*assessing normality - NO NOT NORMAL, MUST REMEDIATE
+//graph drop Graph hist box kdens pp qq
+predict styres2, rstudent
+histogram styres2, bin (10) name(hist)
+graph box styres2, name(box)
+kdensity styres2, normal name(kdens) 
+pnorm styres2, name(pp)
+qnorm styres2, name(qq)
+gr combine hist box kdens pp qq, title("Figures to Assess Normal Errors")
+swilk styres2
+*p<0.001
+
+*From the figures, we can see that there are severe departures in the figures near the upper end of our outcome distribution, leading to the assumption that the model is not normal. This is proved by our Shapiro-Wilks (p<0.001) test, which is statistically significant, meaning that our distribution of errors is not normal. 
+
+rvfplot, yline(-15 0 15)
+*We can see that the points that fall outside the lines are not randomly distributed, which is supports our last conclusions.
+
+estat imtest
+*p<0.001
+estat hettest
+*p<0.001
+*We can see that for our model, the White (p<0.001) and Breusch-Pagan (p<0.001) tests are both statistically significant. The model is heteroskedastic (not-normal).
+
+// Remediation - heteroskedasticity
+*addressing heteroskedasticity -- transform Y
+*with expenditure models, the dataset is usually right skewed because of a lack of 0 or non-zero values
+*we do not want to categorize the expenditures variables, so we will add 1 and log, square, and cube transform the variable (even if interpretation is more tricky)
+
+gen totalexp_log=log(1+totalexp)
+gen totalexp_sq=(1+totalexp)^2
+gen totalexp_cu=(1+totalexp)^3
+
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.0943, p<0.001
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.1012, p<0.001 -- BEST!
+svy, subpop (if pregnant==1): regress totalexp_sq i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.0645, p=0.0003
+svy, subpop (if pregnant==1): regress totalexp_cu i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.0437, p=0.0194
+
+//assumption checking, fit unweighted model
+regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+*r-squared: 0.0627, p<0.001
+regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+*r-squared: 0.1183, p<0.001 -- BEST!
+regress totalexp_sq i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+*r-squared: 0.0583, p<0.001
+regress totalexp_cu i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+*r-squared: 0.0478, p=0.0002
+
+//Testing remediation
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.1012, p<0.001
+regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
+*r-squared: 0.1183, p<0.001
+
+rvfplot, yline(-15 0 15)
+*We can see that the points that fall outside the lines are still not randomly distributed.
+
+estat imtest
+*p<0.001
+estat hettest
+*p<0.001
+/*We can see that for our model, the White (p<0.005) and Breusch-Pagan (p<0.005) tests are both are statistically significant. 
+The model is still heteroskedastic (not-normal), though better fitting after the transformation.
+*/
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+*r-squared: 0.1012, p<0.001; b/c model covariates are all categorical!
+*acceptable values for r-squared = 0.3-0.6; p-value = 0.2
+
+//Table building for presentation
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+dtable i.hispanx i.pregnant i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x,by(racex) svy subpop(if pregnant==1) nformat(%7.2f mean sd) sformat ("%s" sd) export(table1_ale.docx, replace)
+
+tab racex hispanx, chi2
+tab racex pregnant, chi2
+tab racex diabetes, chi2
+tab racex hideg, chi2
+tab racex inscov08, chi2
+tab racex povcat08, chi2
+tab racex region08, chi2
+tab racex marry08x, chi2
+
+svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
+svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+svy, subpop (if pregnant==1 & diabetes==1): regress totalexp_log i.racex i.hispanx i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+svy, subpop (if pregnant==1 & diabetes==0): regress totalexp_log i.racex i.hispanx i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
+
+log close

@@ -1,0 +1,236 @@
+*Kayla Lam, kaylarlam@gmail.com / kayla.lam@tufts.edu
+If/Then Statements
+Date Created: 6/30/2024, Date Edited: 6/30/2024;
+
+Libname Rocket 'C:\Users\Kayla\Desktop\SAS\Data';
+
+*Imagine you are investigating a strange illness among poodles in Beverly Hills.
+The researchers hypothesize that a new trend of dyeing poodles different colors may have led to the outbreak of the disease.
+The researchers provide you with a dataset containing some of the poodles under investigation in Beverly Hills.
+(Note that for the variable Color: 1=Pink, 2=Purple, 3=Green, 4=Blue, and 5=Red).  
+Import the data (called poodles.SAS7bdat) into the library in SAS.  
+Write the syntax which allows you answer the following questions.  
+(You can include your answers in the syntax, using asterisks to make SAS comments.)
+
+*Import the data;
+proc contents data = Rocket.poodles;
+run;
+
+*How many observations (number of poodles) are in the dataset?;
+proc print data=Rocket.poodles;
+run;
+*140 poodles are in the dataset;
+
+*The researchers want you to email them the variable names in alphabetical order.;
+proc contents data=Rocket.poodles short; run;
+
+*What is the average incubation period (in days)?;
+proc means data=Rocket.poodles mean;
+   var Incubate;
+run;
+*21.1642857 days is the average incubation period for the dataset;
+
+*The researchers decide that purple poodles may have a shorter incubation period then pink poodles.
+Calculate the mean incubation periods for purple poodles and for pink poodles separately.
+Are the researchers correct?;
+
+*Pink poodles;
+proc means data=Rocket.poodles mean;
+   where color = 1;
+   var Incubate;
+run;
+*The avereage incubation period for pink poodles is 23.8 days;
+
+*Purple poodles;
+proc means data=Rocket.poodles mean;
+   where color = 2;
+   var Incubate;
+run;
+*The avereage incubation period for purple poodles is 9.9230769 days;
+
+*The researchers are correct, purple poodles (9.9230769 days) have a shorter incubation period than pink poodles (23.8 days);
+
+*The researchers tell you that that the Poodles dataset is too large and they would now like to only study blue poodles.
+Drop the variables “Owner”, “PoodleGender”, and “Haircuts” and create a new dataset containing only blue poodles.
+How many observations and variables are in the new dataset?;
+data Rocket.poodle_reduced (keep = Age Color Incubate);
+set Rocket.poodles;
+where color = 4;
+run;
+
+proc print data=Rocket.poodle_reduced;
+run;
+*There are 46 observations and 3 variables in the new, reduced dataset;
+
+*The dataset iphone.SAS7bdat contains information at cell phone usage among iPhone users.
+
+*Import the data;
+proc contents data = Rocket.iphone;
+run;
+proc print data = Rocket.iphone;
+run;
+
+*Calculate the mean cell phone bill cost (in dollars) among women using a WHERE statement
+(note: for the variable “gender”: 1=women, 2=men);
+proc means data=Rocket.iphone mean;
+   where gender = 1;
+   var bill;
+run;
+*The mean cell phone bill cost for women in the dataset was 68.45 dollars.;
+
+*Calculate the mean income (in thousands of dollars) among iPhone users older than 30 years old using an IF statement;
+data Rocket.iphone30;
+set Rocket.iphone;
+if age > 30;
+run;
+
+proc means data=Rocket.iphone30 mean;
+   var income;
+run;
+*The mean income for iphone users over 30 years old in the dataset was 64.42 thousand dollars.;
+
+*Calculate the mean number of minutes (per week) among men under 40 years old.;
+data Rocket.iphone40;
+set Rocket.iphone;
+if age > 40;
+run;
+proc means data=Rocket.iphone40 mean;
+   where gender = 2;
+   var minutes;
+run;
+*The mean minutes for male iphone users over 40 years old was 180.1099705 minutes.;
+
+*The SAS dataset bp.sas7bdat contains systolic and diastolic blood pressure measurements for 92 individuals.
+Sex is coded as 1=male, 0=female.  
+
+*Import the data;
+proc contents data = Rocket.bp;
+run;
+proc print data = Rocket.bp;
+run;
+
+*Calculate Mean Arterial Pressure (MAP) for all subjects using the formula: MAP = Diast + 1/3(Syst + Diast).
+Be careful with your parentheses.
+Determine the mean, median and standard deviation of MAP, SYST, & DIAST.;
+data Rocket.bp;
+set Rocket.bp;
+MAP = DIAST + (1/3 * (SYST + DIAST));
+run;
+proc print data = Rocket.bp;
+run;
+proc means data=Rocket.bp mean median std;
+   var MAP SYST DIAST;
+run;
+*MAP MEAN: 149.3768116
+SYST MEAN: 121.9565217
+DIAST MEAN: 81.5434783
+
+MAP MEDIAN: 146.6666667
+SYST MEDIAN: 120.0000000
+DIAST MEDIAN: 80.0000000
+
+MAP STD DEV: 18.4949729
+SYST STD DEV: 15.9751958
+DIAST STD DEV: 10.6290221;
+
+*Recode MAP into a new variable where 0=MAP below the mean & 1=MAP at the mean or above.  
+What % of observations are above the mean?;
+*Recode MAP;
+data Rocket.bp;
+set Rocket.bp;
+if MAP < 149.3768116 then
+      MAP_recode = 0;
+   else
+      MAP_recode = 1;
+run;
+proc print data = Rocket.bp;
+run;
+
+proc freq data=Rocket.bp;
+   tables MAP_recode;
+run;
+*40.22% of observations are above the mean in the dataset.;
+
+*Create a new permanent SAS dataset that includes only men with a MAP above the mean.  
+Do not include SYST or DIAST in this new dataset.
+Save the dataset to the same folder containing bp.sas7bdat.  
+How many records are in the new dataset?  
+What variables are in there?;
+data Rocket.bp_new;
+    set Rocket.bp;
+    if sex = 1 and MAP_recode = 1;
+    keep SEX MAP MAP_recode;
+run;
+proc print data = Rocket.bp_new;
+run;
+*There are 24 observations in the new dataset with 3 total variabels (Sex, MAP, and MAP_recod);
+
+*The dataset widecreat.sas7bdat contains serum creatinine measurements taken on 7 different days for each of 300 subjects.  
+*Import the data;
+proc contents data = Rocket.widecreat;
+run;
+proc print data = Rocket.widecreat;
+run;
+
+*Calculate the mean and median level of the first (creat_68) and last (creat_78) serum creatinine measurements (include all subjects).;
+proc means data=Rocket.widecreat mean median;
+   var creat_68 creat_78;
+run;
+*The mean of the first serum creatine measurements (creat_68) was 0.9601695 and the median was 0.8700000.
+  *The mean of the last serum creatine measurements (creat_78) was 0.9847566 and the median was 0.9200000.;
+ 
+*For each creatinine variable, the mean is greater than the median, suggesting that the data are right-skewed.  
+Conduct a natural log transformation for each creatinine measurement, creating seven new variables in the process.;
+data Rocket.widecreat;
+set Rocket.widecreat;
+log_creat_68 = log(creat_68);
+log_creat_69 = log(creat_69);
+log_creat_70 = log(creat_70);
+log_creat_71 = log(creat_71);
+log_creat_72 = log(creat_72);
+log_creat_75 = log(creat_75);
+log_creat_78 = log(creat_78);
+run;
+proc print data = Rocket.widecreat;
+run;
+
+*Then, for each subject, calculate the mean of the logged serum creatinine measurements;
+data Rocket.widecreat_m;
+set Rocket.widecreat;
+serum_mean = mean(log_creat_68 + log_creat_69 + log_creat_70 + log_creat_71 + log_creat_72 + log_creat_75 + log_creat_78);
+run;
+proc print data = Rocket.widecreat_m;
+run;
+
+*Determine the number of missing measurements for each subject.;
+proc freq data=Rocket.widecreat_m;
+    tables log_creat_68 log_creat_69 log_creat_70 log_creat_71 log_creat_72 log_creat_75 log_creat_78/ nocum nocol;
+run;
+
+*Create a new dataset containing only the individuals who are not missing any serum creatinine measurements.
+Drop the unlogged serum creatinine variables and the variable indicating the number of missing measurements.
+How many observations are in this new dataset?;
+data Rocket.widecreat_new;
+    set Rocket.widecreat_m;
+    if not missing(log_creat_68) and
+       not missing(log_creat_69) and
+       not missing(log_creat_70) and
+       not missing(log_creat_71) and
+       not missing(log_creat_72) and
+       not missing(log_creat_75) and
+       not missing(log_creat_78);
+run;
+proc print data=Rocket.widecreat_new;
+run;
+*There are 243 in this new dataset.
+
+*In this new dataset, for each of the logged serum creatinine variables, compute the mean value for subjects over the age of 47.  
+Print the id number and age of these subjects.;
+data Rocket.widecreat_47;
+set Rocket.widecreat_new;
+logged_serum_mean = mean(log_creat_68 + log_creat_69 + log_creat_70 + log_creat_71 + log_creat_72 + log_creat_75 + log_creat_78);
+if age > 47;
+run;
+proc print data = Rocket.widecreat_47;
+var id age logged_serum_mean;
+run;

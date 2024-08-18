@@ -1,0 +1,249 @@
+*Kayla Lam, kaylarlam@gmail.com / kayla.lam@tufts.edu
+Date Formats
+Date Created: 7/2/2024, Date Edited: 8/12/2024;
+
+Libname Rocket 'C:\Users\Kayla\Desktop\SAS\Data';
+
+*The text file (wages.txt) contains data on salaries of US employees.
+
+*Copy and paste the data into your SAS editor and then write syntax to read these data into a SAS file;
+
+data Rocket.wages;
+informat Job_Title $50. Minimum_Salary comma15. Average_Salary comma15. Maximum_Salary comma15.
+Average_Bonus comma15.;
+input Job_Title & $ Companies Employees Minimum_Salary Average_Salary Maximum_Salary Average_Bonus;
+format Minimum_Salary dollar15. Average_Salary dollar15. Maximum_Salary dollar15. Average_Bonus dollar15.;
+datalines;
+General Duty/ Housekeeper 185 9320 $14,854 $19,283 $23,654 $379
+Food Service Worker 165 9687 $14,648 $19,067 $23,429 $375
+Dietititan 155 1230 $37,086 $42,094 $46,975 $905
+Central Supply Worker 156 722 $20,638 $24,271 $27,832 $517
+Social Worker 148 410 $29,691 $34,898 $40,000 $734
+Sup Social Work 146 193 $40,956 $44,569 $48,047 $930
+Pharmacy Tech 149 1388 $22,598 $26,718 $30,757 $588
+Pharmacist 162 3281 $45,422 $52,120 $58,662 $1,100
+Dir, Pharmacy 153 214 $66,019 $74,647 $81,009 $1,624
+Nurse Aide 149 1994 $15,568 $19,074 $22,522 $366
+LPN 148 12165 $29,996 $33,468 $36,840 $813
+RN 175 77588 $40,194 $47,858 $55,378 $1,101
+Nurse Mgr 155 1762 $51,733 $60,436 $68,959 $1,895
+Dir, Nursing 146 222 $76,554 $85,836 $94,861 $3,378
+Physical Therapist 151 1447 $44,453 $54,757 $64,897 $1,214
+Dir, Physical Therapy 151 209 $61,898 $70,746 $79,382 $1,828
+Respiratory Therapist 148 4204 $34,092 $39,763 $45,315 $853
+Director, Respiratory 148 199 $45,251 $50,671 $55,939 $1,316
+Radiology Tech 148 9071 $39,204 $42,814 $46,295 $842
+Ultrasound Tech 143 630 $37,205 $42,331 $47,330 $887
+Nuclear Med Tech 128 450 $40,432 $45,738 $49,847 $1,020
+Dir, Radiology 156 202 $43,512 $50,451 $57,238 $12,504
+Lab Technologist 148 7215 $28,862 $33,412 $37,861 $711
+Histotech 139 414 $30,503 $34,350 $38,095 $734
+Cytotech 128 297 $27,616 $38,971 $50,209 $998
+Lab Section Supervisor 133 334 $42,709 $49,274 $55,690 $1,214
+Chief Lab Mgr 153 191 $72,347 $79,515 $86,445 $2,135
+;
+run;
+proc print data=Rocket.wages;
+run;
+
+*Write syntax that creates a nice report that shows the Job Title, Average Salary, and the Average Bonus Paid.  
+Be sure that the variables print with commas and dollar signs.;
+proc print data=Rocket.wages;
+var Job_Title Average_Salary Average_Bonus;
+run;
+
+*Create a new categorical (character) variable that describes the range of salaries for each job.  
+First, for each job type compute the difference between the Average Minimum Salary and the Average Maximum Salary.  
+Then, split these ranges into four equal groups by calculating the quartiles.  
+Using the PUT function, then make your new variable, with these respective values:  
+“High Variability,” “Moderate Variability,” “Low Variabiliity,” and “No Room for Negotiation.”  
+Write syntax that reprints your report, adding this new info.;
+
+*First, for each job type compute the difference between the Average Minimum Salary and the Average Maximum Salary.;
+data Rocket.wages_new;
+set Rocket.wages;
+Wage_Range = Maximum_Salary - Minimum_Salary;
+format Wage_Range dollar25.;
+run;
+proc print data=Rocket.wages_new;
+run;
+
+*Then, split these ranges into four equal groups by calculating the quartiles.;
+proc means data = Rocket.wages_new min q1 median q3 max;
+var Wage_Range;
+run;
+*Minimum Lower Quartile Median Upper Quartile Maximum
+6844.00 8159.00 10309.00 14990.00 22593.00
+;
+
+*Using the PUT function, then make your new variable, with these respective values:  
+“High Variability,” “Moderate Variability,” “Low Variabiliity,” and “No Room for Negotiation.”;
+proc format;
+value cat 6844.00-8159.00   = 'No Room for Negotiation'
+          8159.01-10309.00  = 'Low Variability'
+ 10309.01-14990.00 = 'Moderate Variabilty'
+          14990.01-22593.00 = 'High Variabilty';
+run;
+data Rocket.wages_1;
+set Rocket.wages_new;
+Wage_Range_Cat = put (Wage_Range, cat.);
+run;
+
+*Write syntax that reprints your report, adding this new info.;
+proc print data=Rocket.wages_1;
+run;
+
+*The only two living Beatles, Paul McCartney, and Ringo Starr, were born on June 18th 1942 and July 7th 1940, respectively.  
+John Lennon, who was born on October 9th 1940, died on December 8th 1980.  
+George Harrison was born on February 25th 1943 and died on November 29th 2001.  
+
+*How old would Lennon and Harrison be if they were alive today?  _______
+Which Beatle died youngest? _______;
+
+data Rocket.beatles;
+informat Name $20. Birth date7. Death date7.;
+input Name$ & Birth Death;
+format Birth date7. Death date7.;
+AgeToday = int((today() - Birth)/365.25);
+AgeDeath = round((Death - Birth)/365.25 , 2);
+datalines;
+Paul McCartney 18jun42 .
+Ringo Starr 07jul40 .
+John Lennon      09oct40 08dec80
+George Harrison    25feb43 29nov01
+;
+run;
+proc print data = Rocket.beatles;
+run;
+*Lennon would be 83 years old today and Harrison would be 81 years old today.
+John Lennon died the youngest at 40 years old.
+
+Write syntax that creates a nicely formatted report for publication in Europe that shows the date of birth and date of death for the four Beatles.  
+Note that standard date format in Europe is day/month/year.;
+
+proc print data = Rocket.beatles;
+var Name Birth Date;
+run;
+
+Assume that ever since his 12th birthday, Paul (The Cute Beatle) has spent the first day of each month at his grandmother’s house, taking tea and crumpets.  
+He eats 5 crumpets every time.  
+Using SAS, compute how many crumpets his grandmother has had to make (assume she doesn’t eat any and she doesn’t make any extra).;
+
+data Rocket.beatles;
+informat Name $20. Birth date7. Death date7.;
+input Name$ & Birth Death;
+format Birth date7. Death date7.;
+AgeToday = int((today() - Birth)/365.25);
+AgeDeath = round((Death - Birth)/365.25 , 2);
+if name = "Paul McCartney" then Crumpets = INTCK ('MONTH', (birth+365.25*12), today())*5;
+else if name NOT in ("Paul McCartney") then Crumpets = 0;
+datalines;
+Paul McCartney 18jun42 .
+Ringo Starr 07jul40 .
+John Lennon      09oct40 08dec80
+George Harrison    25feb43 29nov01
+;
+run;
+proc print data = Rocket.beatles;
+run;
+
+proc print Data = Rocket.Beatles;
+where Name = "Paul McCartney";
+var Name Crumpets;
+run;
+*3,720 crumpets
+
+*The dataset world70.sas7bdat contains statistics for 77 countries, including the percent of the population living in urban areas in 1976,
+mean life expectancy in 1976 (in years), and infant death rate per 1000 born in 1970.
+
+Print the names of the countries that have infant death rates greater than 175 per 1000;
+proc print data = Rocket.World70;
+where indeat70  ne . AND indeat70 gt 175;
+var name indeat70;
+title "Countries with IDR <175 per 1000";
+run;
+
+*Print the names of the countries that have life expectancy less than 45 years;
+proc print data = Rocket.World70;
+where lifeex76 ne . AND lifeex76 lt 45;
+var name lifeex76;
+title "Countries with Life Expectancy <45 years";
+run;
+
+*Round urban percentage to an integer (no decimals).  
+Calculate the mean urban percentage, using the rounded data, amongst countries that have life expectancies less than 60 years;
+data Rocket.World2;
+set Rocket.World70;
+roundedpop = round (urpop76,1);
+run;
+
+proc means data= World2 mean maxdec = 2;
+where lifeex76 ne . AND lifeex76 lt 60;
+var Roundedpop;
+run;
+*The mean urban percentage for countries that have a life expectancy <60 years is 25.54%
+
+Create a new variable that is a concatenation of the first 3 letters of the country’s name and the country’s life expectancy, with an underscore between these two parts
+(e.g. Alg_55).  If a country is missing data on life expectancy then put NA in place of the life expectancy (e.g. Gam_NA).  
+Print the first 10 observations in the dataset;
+data Rocket.World3;
+set Rocket.World2;
+if lifeex76 ne . then Name2 = SUBSTR (name, 1,3) ||'_'|| LEFT(lifeex76);
+else if lifeex76 eq . then Name2 = SUBSTR (name, 1,3) ||'_'|| LEFT("NA");
+drop countname;
+run;
+
+proc print data= Rocket.World3 (obs = 10);
+title "Concatenation of Name and Life Expectancy, As Applicable";
+Run;
+
+*As head of the Someland Hecurity department, you must monitor the internet activity of the governments of these 77 countries. 
+You decide to divvy up the countries amongst yourself and some of your best agents:  Bond, Bourne, Bauer, and Bristow.
+Luckily, as director, you only have to personally monitor 5 countries, which you get to choose from amongst your favorite dream vacation destinations on the list. 
+The remaining 72 will be randomly divided among your 4 agents.;
+
+data Rocket.Agent;
+set Rocket.world70;
+random = ranuni (1);
+informat Agent $7.;
+format Agent $7.;
+if name in ("Morocco" "South Africa" "Venezuela" "Cape Verde" "Trinidad and Tobago" "Suriname") THEN agent = "MG";
+else if 0 le random lt .25 then agent = "Bauer";
+else if .25 le random lt .5 then agent = "Bristow";
+else if .5 le random lt .75 then agent = "Bond";
+else if random ge .75 then agent = "Bourne";
+run;
+
+proc print data=Rocket.Agent;
+where agent = "MG";
+var Name;
+title "Countries for MG";
+run;
+
+proc print data=Rocket.Agent;
+where agent = "Bauer";
+var Name;
+title "Countires for Bauer";
+run;
+
+proc print data=Rocket.Agent;
+where agent = "Bristow";
+var Name;
+title "Countires for Bristow";
+run;
+
+proc print data=Rocket.Agent;
+where agent = "Bond";
+var Name;
+title "Countires for Bond";
+run;
+
+proc print data=Rocket.Agent;
+where agent = "Bourne";
+var Name;
+title "Countires for Bourne";
+run;
+
+*BRAIN TEASER: What do these numbers have in common?
+-34593, -28592, -21301, 1421
+They are dates;

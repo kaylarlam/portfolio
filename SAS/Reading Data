@@ -1,0 +1,88 @@
+*Kayla Lam, kaylarlam@gmail.com / kayla.lam@tufts.edu
+Reading Data In
+Date Created: 6/10/2024, Date Edited: 6/30/2024;
+
+Libname Rocket 'C:\Users\Kayla\Desktop\SAS\Data';
+
+*For its first 180 years, almost every justice on the Supreme Court of the United States was a white male Protestant.
+Only four women have ever served on the highest court.
+Here they are, with their birth year and year appointed.
+Create a SAS dataset that includes their first name (to save some typing), year born, and year appointed.
+Calculate each woman’s age when she was nominated.
+Also calculate the average age of nomination.;
+
+*Create a SAS dataset: sc_justices;
+data sc_justices;
+input birth_year year_appointed first_name$;
+datalines;
+1930 1981 Sandra
+1933 1993 Ruth
+1954 2009 Sonia
+1960 2010 Elena
+;
+data age_justices;
+set sc_justices;
+nomination_age = year_appointed - birth_year;
+run;
+
+*Calculate age at nomination: age_justices;
+data age_justices;
+set sc_justices;
+nomination_age = year_appointed - birth_year;
+run;
+
+*Calculate average age of nomination;
+proc means data=age_justices mean;
+   var nomination_age;
+run;
+*The average age of nomination was 54 years old;
+
+*The Song of Ice and Fire begins in the reign of King Robert Baratheon, who usurped the throne from the Mad King Aerys Targaryen,
+ending the Targaryen dynasty (for now). Robert dies in the first book / season, and hilarity ensues.
+Here are data about the most recent Kings of Westeros, including the years they took the throne and the year they died.
+Enter them into SAS and calculate who reigned the longest.;
+
+*Create a SAS dataset: kings_of_westeros;
+data kings_of_westeros;
+length first_name $ 20;
+length last_name $ 20;
+input year_reigned year_died first_name$ last_name$ number$;
+datalines;
+221 233 Maeker Targaryen I  
+233 259 Aegon Targaryen V  
+259 262 Jaehaerys Targaryen II  
+262 283 Aerys Targaryen II  
+283 298 Robert Baratheon ,,
+;
+run;
+
+*Calculate who reigned the longest: kings_of_westeros_reign reign_time;
+data kings_of_westeros_reign;
+set kings_of_westeros;
+reign_time = year_died - year_reigned;
+run;
+proc print data=kings_of_westeros_reign;
+run;
+*Aegon Targaryen V reigned the longest at 26 years;
+
+*The dataset Sybor Baby.txt contains data about the habits of a newborn child belonging to the professor Tavid Sybor.
+The text file ostensibly contains information about the day of the month, number of hours of sleep, the baby food eaten at dinner,
+and the hour of bedtime for Sybor’s child for each day of the week.
+Due to sleep deprivation, the data file is not perfect.
+Read the data into SAS and calculate the mean number of hours of sleep that the baby is getting.;
+
+*Read the data into SAS;
+%let filepath = 'C:\Users\Kayla\Desktop\SAS\Data\Sybor Baby.txt';
+data Sybor_Baby;
+    infile "&filepath" dlm=',' dsd firstobs=1;
+informat weekday $10. ;
+input weekday$ month_date hours_sleep baby_dinner$ bedtime;
+run;
+proc print data=Sybor_Baby;
+run;
+
+*Calculate the mean number of hours of sleep that the baby is getting;
+proc means data=Sybor_Baby mean;
+   var hours_sleep;
+run;
+*The mean number of hours of sleep that the baby is getting is 2.3846154 hours a night during the observation period;

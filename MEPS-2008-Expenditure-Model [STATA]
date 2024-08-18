@@ -9,14 +9,13 @@ Date Edited: 8/17/2024
 
 clear
 cd "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Do Files/Exploratory Analysis/Diabetes/"
-log using "Baseline File: Full Year Consolidated, Longitudinal - do file log", replace
-/* 2008 */
+log using "MEPS 2008 - Expenditures Model - do file log", replace
 
 /* Longitudinal file */
 use "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Data/h130.dta"
 rename *, lower
 
-// format dupersid
+//format dupersid
 gen dupersid_2 = dupersid
 format dupersid_2 %-20s
 describe dupersid
@@ -128,7 +127,7 @@ replace diabetes_education = 3 if dscnpc53 == 1
 replace diabetes_education = 4 if (dscint53 == 1 | dscgrp53 == 1)
 label variable diabetes_education "Type of Diabetes Education Source"
 label define dia_edu_label 1 "Primary Care Provider" 2 "Provider Over the Phone"  3 "Other Provider" 4 "Group Class or Internet"
-*grouped together group class/internet due to small observation size
+//grouped together group class/internet due to small observation size
 label values diabetes_education dia_edu_label
 
 /*Diabetes management indicator
@@ -144,7 +143,7 @@ label variable diabetes_management "Type of Diabetes Management"
 label define dia_man_label 1 "Diet Modification" 2 "Oral Medication" 3 "Insulin Injection"
 label values diabetes_management dia_man_label
 
-*Define expenditure variables by type of service
+//Define expenditure variables by type of service
 gen totalexp = totexp08
 label variable totalexp "Total Health Care Expenditures"
 gen hospital_inpatient = ipdexp08 + ipfexp08
@@ -158,8 +157,8 @@ label variable dental "Total Dental Care Expenditures"
 gen home_health_other = hhaexp08 + hhnexp08 + othexp08 + visexp08
 label variable home_health_other "Home Health Care (Agency & Non-Agency) and Other Expenditures"
 
-*create race/ethnicity indicators
-*collapse race variable
+//create race/ethnicity indicators
+//collapse race variable
 label variable racex "Race"
 tab racex
 recode racex "3" = "6"
@@ -185,7 +184,7 @@ recode hideg "1" = "1"
 recode hideg "2" "3" = "2"
 recode hideg "4" "5" "6" "7" = "3"
 label define hideg_LABEL 1 "No Degree" 2 "High School Diploma/GED" 3 "Other/Bachelors/Masters/Doctoral Degree"
-*collapse categories with little obs
+//collapse categories with little obs
 label values hideg hideg_LABEL
 tab hideg
 
@@ -201,7 +200,7 @@ recode marry08x "-9" "-7" "6" = .
 recode marry08x "2" "3" "4" = "2"
 recode marry08x "5" = "3"
 label define marry_LABEL 1 "Married" 2 "Widowed/Divorced/Separated" 3 "Never Married"
-*collapse categories with little obs
+//collapse categories with little obs
 label values marry08x marry_LABEL
 tab marry08x
 
@@ -212,7 +211,7 @@ recode povcat08 "3" = "2"
 recode povcat08 "4" = "3"
 recode povcat08 "5" = "4" 
 label define povcat_LABEL 1 "Near Poor/Poor/Negative" 2 "Low Income" 3 "Middle Income" 4 "High Income"
-*collapse categories with little obs
+//collapse categories with little obs
 label values povcat08 povcat_LABEL
 tab povcat08
 
@@ -226,7 +225,7 @@ tab region08
 //create date from adcmpd42 adcmpm42 adcmpy42
 egen saq_date = concat(adcmpm42 adcmpd42 adcmpy42), punct(-)
 
-// format dupersid
+//format dupersid
 gen dupersid_2 = dupersid
 format dupersid_2 %-20s
 describe dupersid
@@ -239,21 +238,16 @@ save FYC_2008, replace
 merge m:m dupersid using LONG_2008, generate(LONG) 
 drop if LONG==2
 drop LONG
-*15,067 not matched from master
-*288 not matched from using
-*17,999 matched
+//15,067 not matched from master
+//288 not matched from using
+//17,999 matched
 
 save BASELINE_2008, replace
 describe
-*33,066 obs total  
-log close
+//33,066 obs total  
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /* MODEL BUILDING */
-
 clear
-cd "/Users/kaylalam/Desktop/Documents/Tufts documents/ALE/Do Files/Exploratory Analysis/Diabetes"
-log using "Model Building - Total Expenditures do file log", replace
 use BASELINE_2008
 rename *, lower
 
@@ -277,83 +271,81 @@ anova: categorical and continuous
 chi2: categorical and categorical
 */
 
-*outcome + covariates:
+//outcome + covariates:
 anova totalexp racex 
-*p<0.001, r=-0.0202
+//p<0.001, r=-0.0202
 anova totalexp hispanx
-*p<0.001, r=-0.0781
+//p<0.001, r=-0.0781
 anova totalexp diabetes 
-*p<0.001, r=0.1898
+//p<0.001, r=0.1898
 anova totalexp hideg
-*p<0.001, r=0.0307
+//p<0.001, r=0.0307
 anova totalexp inscov08
-*p<0.001, r=-0.0696
+//p<0.001, r=-0.0696
 anova totalexp povcat08 
-*p<0.001, r=0.0255
+//p<0.001, r=0.0255
 anova totalexp region08
-*p<0.001, r=-0.0369
+//p<0.001, r=-0.0369
 anova totalexp marry08x
-*p<0.001, r=-0.0728
+//p<0.001, r=-0.0728
 pwcorr totalexp racex hispanx diabetes hideg inscov08 povcat08 region08 marry08x
 
-*checking for relationships with other predictors
+//checking for relationships with other predictors
 tab hideg inscov08, chi2
-*p<0.001, r=-0.3335
+//p<0.001, r=-0.3335
 tab hideg povcat08, chi2
-*p<0.001, r=0.3925
+//p<0.001, r=0.3925
 tab hideg marry08x, chi2
-*p<0.001, r=-0.1924
+//p<0.001, r=-0.1924
 tab hideg region08, chi2
-*p<0.001, -0.0575
+//p<0.001, -0.0575
 tab inscov08 povcat08, chi2
-*p<0.001, r=-0.4389
+//p<0.001, r=-0.4389
 tab inscov08 region08, chi2
-*p<0.001, r=0.0568
+//p<0.001, r=0.0568
 tab inscov08 marry08x, chi2
-*p<0.001, r=0.1761
+//p<0.001, r=0.1761
 tab povcat08 region08, chi2
-*p<0.001, r=-0.0183
+//p<0.001, r=-0.0183
 tab povcat08 marry08x, chi2
-*p<0.001, r=-0.2154
+//p<0.001, r=-0.2154
 tab region08 marry08x, chi2
-*p<0.001, r=-0.0269
-
+//p<0.001, r=-0.0269
 pwcorr hideg inscov08 povcat08 region08 marry08x
 
-// Evaluate missing
+//Evaluate missing
 egen miss = rowmiss (racex hispanx diabetes hideg inscov08 povcat08 region08 marry08x) 
 tab miss if pregnant == 1
 count if (miss==0 & pregnant == 1)
 tab pregnant
 //browse racex hispanx diabetes hideg inscov08 povcat08 region08 marry08x if (miss==1 & pregnant == 1)
-*968 total, 945 non-missing, 23 missing, all due to missing hideg
+//968 total, 945 non-missing, 23 missing, all due to missing hideg
 
-// Determine number of covariates in model
+//Determine number of covariates in model
 dis 945/20
 dis 945/10
-*47.25 conservative, 94.5 liberal
+//47.25 conservative, 94.5 liberal
 
-// model building - total expenditures
+//Initial model building - total expenditures
 svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
 svy, subpop (if pregnant==1): regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.0943, p<0.001
+//r-squared: 0.0943, p<0.001
 
 //assumption checking, fit unweighted model
 regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
-*r-squared: 0.0627, p<0.001
+//r-squared: 0.0627, p<0.001
 
-//diagnostics
-*some collinearity between covariates, but to be expected!
+//diagnostics - some collinearity between covariates, but to be expected!
 
 //assessing linearity - NO COLINEARITY ISSUES
 predict yhat
 vif
-*highest vif was 2.59, which is not of concern for colinearity
+//highest vif was 2.59, which is not of concern for colinearity
 rvfplot
-*we do not have a clear curvilinear trend, reason for line = non-zero expenditures do not exist, gap in middle = normal
+//we do not have a clear curvilinear trend, reason for line = non-zero expenditures do not exist, gap in middle = normal
 
-*assessing normality - NO NOT NORMAL, MUST REMEDIATE
-//graph drop Graph hist box kdens pp qq
+//assessing normality - NO NOT NORMAL, MUST REMEDIATE
+*graph drop Graph hist box kdens pp qq
 predict styres2, rstudent
 histogram styres2, bin (10) name(hist)
 graph box styres2, name(box)
@@ -362,23 +354,23 @@ pnorm styres2, name(pp)
 qnorm styres2, name(qq)
 gr combine hist box kdens pp qq, title("Figures to Assess Normal Errors")
 swilk styres2
-*p<0.001
+//p<0.001
 
-*From the figures, we can see that there are severe departures in the figures near the upper end of our outcome distribution, leading to the assumption that the model is not normal. This is proved by our Shapiro-Wilks (p<0.001) test, which is statistically significant, meaning that our distribution of errors is not normal. 
+//From the figures, we can see that there are severe departures in the figures near the upper end of our outcome distribution, leading to the assumption that the model is not normal. This is proved by our Shapiro-Wilks (p<0.001) test, which is statistically significant, meaning that our distribution of errors is not normal. 
 
 rvfplot, yline(-15 0 15)
-*We can see that the points that fall outside the lines are not randomly distributed, which is supports our last conclusions.
+//We can see that the points that fall outside the lines are not randomly distributed, which is supports our last conclusions.
 
 estat imtest
-*p<0.001
+//p<0.001
 estat hettest
-*p<0.001
-*We can see that for our model, the White (p<0.001) and Breusch-Pagan (p<0.001) tests are both statistically significant. The model is heteroskedastic (not-normal).
+//p<0.001
+//We can see that for our model, the White (p<0.001) and Breusch-Pagan (p<0.001) tests are both statistically significant. The model is heteroskedastic (not-normal).
 
-// Remediation - heteroskedasticity
-*addressing heteroskedasticity -- transform Y
-*with expenditure models, the dataset is usually right skewed because of a lack of 0 or non-zero values
-*we do not want to categorize the expenditures variables, so we will add 1 and log, square, and cube transform the variable (even if interpretation is more tricky)
+//Remediation - heteroskedasticity
+//addressing heteroskedasticity -- transform Y
+//with expenditure models, the dataset is usually right skewed because of a lack of 0 or non-zero values
+//we do not want to categorize the expenditures variables, so we will add 1 and log, square, and cube transform the variable (even if interpretation is more tricky)
 
 gen totalexp_log=log(1+totalexp)
 gen totalexp_sq=(1+totalexp)^2
@@ -386,47 +378,88 @@ gen totalexp_cu=(1+totalexp)^3
 
 svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
 svy, subpop (if pregnant==1): regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.0943, p<0.001
+//r-squared: 0.0943, p<0.001
 svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.1012, p<0.001 -- BEST!
+//r-squared: 0.1012, p<0.001 -- BEST!
 svy, subpop (if pregnant==1): regress totalexp_sq i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.0645, p=0.0003
+//r-squared: 0.0645, p=0.0003
 svy, subpop (if pregnant==1): regress totalexp_cu i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.0437, p=0.0194
+//r-squared: 0.0437, p=0.0194
 
 //assumption checking, fit unweighted model
 regress totalexp i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
-*r-squared: 0.0627, p<0.001
+//r-squared: 0.0627, p<0.001
 regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
-*r-squared: 0.1183, p<0.001 -- BEST!
+//r-squared: 0.1183, p<0.001 -- BEST!
 regress totalexp_sq i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
-*r-squared: 0.0583, p<0.001
+//r-squared: 0.0583, p<0.001
 regress totalexp_cu i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
-*r-squared: 0.0478, p=0.0002
+//r-squared: 0.0478, p=0.0002
 
 //Testing remediation
 svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
 svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.1012, p<0.001
+//r-squared: 0.1012, p<0.001
 regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x if pregnant == 1
-*r-squared: 0.1183, p<0.001
+//r-squared: 0.1183, p<0.001
 
 rvfplot, yline(-15 0 15)
-*We can see that the points that fall outside the lines are still not randomly distributed.
+//We can see that the points that fall outside the lines are still not randomly distributed.
 
 estat imtest
-*p<0.001
+//p<0.001
 estat hettest
-*p<0.001
+//p<0.001
 /*We can see that for our model, the White (p<0.005) and Breusch-Pagan (p<0.005) tests are both are statistically significant. 
 The model is still heteroskedastic (not-normal), though better fitting after the transformation.
 */
+
+/* Model Building Process and Remediation Interpretation
+We utilized multiple linear regression to build our model on the relationship between total health care expenditures and race/ethnicity for pregnant diabetic and non-diabetic women in the United States for the year of 2008. 
+We used svy to incorporate survey weightage after setting the survey weight.
+
+To assess linearity, we utilized VIF to identify any covariates with a VIF value higher than 10, which would denote an issue with linearity within the model.
+While we did not identify any, we also ran rvfplot which revealed that there was a clear curvilinear trend, AKA an issue with linearity within the model.
+
+To assess normality, we used three different tests.
+The Shapiro-Wilks test was the initial test we utilized.
+	A statistically significant result would mean that there are issues with normality within the model, which we did identify.
+We used White’s test after to confirm this, which resulted in a statistically significant result.
+	This meant that there were issues with normality within the model.
+	However, White’s test is not always accurate.
+Finally, we used the Breusch-Pagan test, which resulted in a statistically significant result.
+	This meant that there were issues with normality within the model.
+	It was finally accepted by our standards as heteroskedastic. 
+
+We know that our base model has issues with linearity and heteroskedasticity.
+	One way to address this would be to drop influential outliers in the models.
+	However in expenditure models, this is not the right move! 
+	Dropping influential cases would drop the sickest people in the dataset with higher expenditure costs.
+To remediate our model we attempted to transform Y, which was total health care expenditures.
+	We could have categorized this, but since we were interested in total health care expenditures as a continuous measure, we did not want to.
+	Instead, we added 1 and took the log, square, and cubic transformation of total health care expenditures.
+	We added 1 because with expenditure models, the dataset is usually right skewed because of a lack of 0 or non-zero values.
+Of the three transformations, log transformation was the best fit with a r-squared value of 0.1012 or 10.12% model fitness.
+*/
+
+//FINAL MODEL
 svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
 svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
-*r-squared: 0.1012, p<0.001; b/c model covariates are all categorical!
-*acceptable values for r-squared = 0.3-0.6; p-value = 0.2
+//r-squared: 0.1012, p<0.001; b/c model covariates are all categorical!
+//acceptable values for r-squared = 0.3-0.6; p-value = 0.2
 
-//Table building for presentation
+/* Model Interpretation
+In 2008, after adjusting for the highest education degree, insurance coverage, poverty level, region, and marital status…
+	Black pregnant women had a 37.37% lower total health care expenditures cost compared to White pregnant women.
+		Only this association is statistically significant with a p-value of 0.021 (barely).
+	We did not observe a significant difference in cost among Asian, Hispanic, and other pregnant women compared to White women.
+Diabetic pregnant women of all races had a 123.87% higher total health care expenditures cost compared to non-diabetic pregnant women.
+	This association was statistically significant with a p-value of 0.017.
+We can see that the r-squared value is 0.1012 and the p-value is less than 0.001, meaning that the model fitness is 10.12% and is statistically significant.
+	The lower percentage of model fitness is to be expected due to the covariates in the model being all categorical.
+*/
+
+//Table 1
 svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
 dtable i.hispanx i.pregnant i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x,by(racex) svy subpop(if pregnant==1) nformat(%7.2f mean sd) sformat ("%s" sd) export(table1_ale.docx, replace)
 
@@ -439,9 +472,25 @@ tab racex povcat08, chi2
 tab racex region08, chi2
 tab racex marry08x, chi2
 
+/*Table 1 Interpretation
+We can see that all of our covariates have a statistically significant relationship with the predictor in the model, race
+We can also see that there is a smaller number of observations for diabetic pregnant women (and some other covariates) when stratified by race
+*/
+
 svyset [pweight=perwt08f], strata(varstr) psu(varpsu) vce(linearized) singleunit(missing)
 svy, subpop (if pregnant==1): regress totalexp_log i.racex i.hispanx i.diabetes i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
 svy, subpop (if pregnant==1 & diabetes==1): regress totalexp_log i.racex i.hispanx i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
 svy, subpop (if pregnant==1 & diabetes==0): regress totalexp_log i.racex i.hispanx i.hideg i.inscov08 i.povcat08 i.region08 i.marry08x
 
+/*Interpretation of interactions
+We can see that none of the associations are statistically significant.
+	Despite this, we see some interaction effects when looking at the coefficients for Black and Asian pregnant women.
+While the coefficients have the same direction, their coefficients are different. 
+	So it looks like the difference in cost when compared to the reference group stems from whether they have diabetes or not.
+After stratification by diabetic and non-diabetic pregnant women we can see that…
+	Among people with diabetes, the cost of care during the evaluation period was 54.24% lower for Black pregnant women compared to White pregnant women.
+	Among people with diabetes, the cost of care during the evaluation period was 26.6% lower for Asian pregnant women compared to White pregnant women.
+	Among those without diabetes, the cost of care during the evaluation period was 34.86% lower for Black pregnant women compared to White pregnant women.
+	Among those without diabetes, the cost of care during the evaluation period was 25.51% lower for Asian pregnant women compared to White pregnant women.
+*/
 log close
